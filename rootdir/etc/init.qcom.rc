@@ -1,0 +1,95 @@
+# Copyright (c) 2009-2012, 2014-2020, The Linux Foundation. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of The Linux Foundation nor
+#       the names of its contributors may be used to endorse or promote
+#       products derived from this software without specific prior written
+#       permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NON-INFRINGEMENT ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+import /vendor/etc/init/hw/init.target.rc
+
+on post-fs-data
+
+service vendor.motor /vendor/bin/hw/vendor.xiaomi.hardware.motor@1.0-service
+    override
+    disabled
+
+on boot
+    # Allow system to modify exposure adjustment state
+    chown system system /sys/devices/platform/soc/soc:qcom,dsi-display/msm_fb_ea_enable
+    chmod 0660 /sys/devices/platform/soc/soc:qcom,dsi-display/msm_fb_ea_enable
+
+on late-fs
+    start surfaceflinger
+    start bootanim
+    start vendor.hwcomposer-2-4
+    start vendor.qti.hardware.display.allocator
+
+# FPS Info
+    chown system graphics /sys/class/graphics/fb0/measured_fps
+    chmod 0666 /sys/class/graphics/fb0/measured_fps
+
+# perf tuning
+on property:vendor.post_boot.parsed=1
+    # Setup runtime cpusets
+    write /dev/cpuset/top-app/cpus 0-7
+    write /dev/cpuset/foreground/cpus 0-5,7
+    write /dev/cpuset/background/cpus 4-5
+    write /dev/cpuset/system-background/cpus 2-5
+    write /dev/cpuset/restricted/cpus 2-5
+
+    # Setup default schedTune value for foreground/top-app
+    write /dev/stune/foreground/schedtune.prefer_idle 1
+    write /dev/stune/top-app/schedtune.boost 5
+    write /dev/stune/top-app/schedtune.prefer_idle 1
+
+    # Setup dynamic stune boost
+    write /sys/module/cpu_boost/parameters/dynamic_stune_boost 15
+    write /sys/module/cpu_boost/parameters/dynamic_stune_boost_ms 1000
+    write /dev/stune/top-app/schedtune.sched_boost 15
+
+    # Setup schedutil ratelimits
+    write /sys/devices/system/cpu/cpu0/cpufreq/schedutil/up_rate_limit_us 500
+    write /sys/devices/system/cpu/cpu0/cpufreq/schedutil/down_rate_limit_us 20000
+    write /sys/devices/system/cpu/cpu6/cpufreq/schedutil/up_rate_limit_us 500
+    write /sys/devices/system/cpu/cpu6/cpufreq/schedutil/down_rate_limit_us 20000
+
+    # Enable schedutil predicted-load boosting
+    write /sys/devices/system/cpu/cpu0/cpufreq/schedutil/pl 1
+    write /sys/devices/system/cpu/cpu6/cpufreq/schedutil/pl 1
+
+    # EAS
+    write /proc/sys/kernel/sched_upmigrate 95
+    write /proc/sys/kernel/sched_downmigrate 85
+
+    # Override readahead to 128KiB
+    write /sys/block/dm-0/queue/read_ahead_kb 128
+    write /sys/block/dm-1/queue/read_ahead_kb 128
+    write /sys/block/dm-2/queue/read_ahead_kb 128
+    write /sys/block/dm-3/queue/read_ahead_kb 128
+    write /sys/block/mmcblk0/queue/read_ahead_kb 128
+    write /sys/block/sda/queue/read_ahead_kb 128
+    write /sys/block/sdb/queue/read_ahead_kb 128
+    write /sys/block/sdc/queue/read_ahead_kb 128
+    write /sys/block/sdd/queue/read_ahead_kb 128
+    write /sys/block/sde/queue/read_ahead_kb 128
+    write /sys/block/sdf/queue/read_ahead_kb 128
